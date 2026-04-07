@@ -10,7 +10,8 @@ exports.getAllWorkers = async (req, res) => {
             workers,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Get all workers error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };
 
@@ -18,7 +19,7 @@ exports.getAllData = async (req, res) => {
     try {
         const data = await SensorData.find()
             .populate('userId', 'name email')
-            .sort({ timestamp: -1 })
+            .sort({ createdAt: -1 })
             .limit(500);
 
         res.status(200).json({
@@ -26,7 +27,8 @@ exports.getAllData = async (req, res) => {
             data,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Get all data error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };
 
@@ -40,7 +42,7 @@ exports.getWorkerData = async (req, res) => {
         }
 
         const recentData = await SensorData.find({ userId: workerId })
-            .sort({ timestamp: -1 })
+            .sort({ createdAt: -1 })
             .limit(50);
 
         res.status(200).json({
@@ -48,6 +50,7 @@ exports.getWorkerData = async (req, res) => {
             recentData,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Get worker data error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };
