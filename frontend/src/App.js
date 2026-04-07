@@ -4,17 +4,18 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import WorkerDashboard from './pages/WorkerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import Profile from './pages/Profile';
+import LoadingSpinner from './components/Common/LoadingSpinner';
 
 // Protected route: redirects to login if not authenticated
 const ProtectedRoute = ({ children, requiredRole }) => {
     const { user, loading } = useAuth();
 
-    if (loading) return <div className="loading fullscreen">Loading...</div>;
+    if (loading) return <LoadingSpinner fullscreen message="Loading…" />;
 
     if (!user) return <Navigate to="/login" replace />;
 
     if (requiredRole && user.role !== requiredRole) {
-        // Redirect to appropriate dashboard for the user's actual role
         return <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />;
     }
 
@@ -24,13 +25,19 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 const AppRoutes = () => {
     const { user, loading } = useAuth();
 
-    if (loading) return <div className="loading fullscreen">Loading...</div>;
+    if (loading) return <LoadingSpinner fullscreen message="Loading…" />;
 
     return (
         <Routes>
             <Route
                 path="/login"
-                element={user ? <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace /> : <Login />}
+                element={
+                    user ? (
+                        <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
+                    ) : (
+                        <Login />
+                    )
+                }
             />
             <Route
                 path="/dashboard"
@@ -45,6 +52,14 @@ const AppRoutes = () => {
                 element={
                     <ProtectedRoute requiredRole="admin">
                         <AdminDashboard />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/profile"
+                element={
+                    <ProtectedRoute>
+                        <Profile />
                     </ProtectedRoute>
                 }
             />
