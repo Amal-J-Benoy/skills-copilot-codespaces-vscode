@@ -13,10 +13,12 @@ process.on('uncaughtException', (err) => {
 require('dotenv').config();
 
 // Provide a fallback JWT secret so the server works without a .env file.
-// This value is intentionally weak – always set JWT_SECRET in production!
+// A random secret is generated each startup so tokens from previous sessions
+// are invalidated on restart.  Always set JWT_SECRET in production!
 if (!process.env.JWT_SECRET) {
-    process.env.JWT_SECRET = 'wearable-monitor-dev-secret-change-in-production';
-    console.warn('[Auth] JWT_SECRET not set – using insecure development default');
+    const crypto = require('crypto');
+    process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+    console.warn('[Auth] JWT_SECRET not set – generated a random secret for this session (set JWT_SECRET in .env for production)');
 }
 
 const app = require('./app');

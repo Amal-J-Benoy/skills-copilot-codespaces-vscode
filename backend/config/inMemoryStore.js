@@ -4,13 +4,16 @@
  * In-memory implementations of the User and SensorData models.
  * These provide the same async API as the corresponding Mongoose models so
  * the controllers work unchanged when MongoDB is not available.
+ *
+ * NOTE: All data is stored in module-level arrays and is lost when the process
+ * restarts.  This implementation is intended for development / testing only.
  */
 
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
-let _idCounter = 1;
 function generateId() {
-    return String(_idCounter++).padStart(24, '0');
+    return crypto.randomBytes(12).toString('hex');
 }
 
 // ── Users ──────────────────────────────────────────────────────────────────────
