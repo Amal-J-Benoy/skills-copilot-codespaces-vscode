@@ -6,6 +6,10 @@ exports.recordSensorData = async (req, res) => {
     try {
         const { deviceId, temperature, uvIndex } = req.body;
 
+        if (!deviceId || temperature === undefined || uvIndex === undefined) {
+            return res.status(400).json({ message: 'Please provide deviceId, temperature, and uvIndex' });
+        }
+
         // Find user by deviceId
         const user = await User.findOne({ deviceId });
         if (!user) {
@@ -32,20 +36,22 @@ exports.recordSensorData = async (req, res) => {
             severity: alertInfo.severity,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Record sensor data error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };
 
 exports.getMyData = async (req, res) => {
     try {
         const userId = req.user.id;
-        const data = await SensorData.find({ userId }).sort({ timestamp: -1 }).limit(100);
+        const data = await SensorData.find({ userId }).sort({ createdAt: -1 }).limit(100);
 
         res.status(200).json({
             count: data.length,
             data,
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Get my data error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };

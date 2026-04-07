@@ -28,17 +28,13 @@ const SensorDataSchema = new mongoose.Schema(
             enum: ['SAFE', 'HIGH', 'CRITICAL'],
             default: 'SAFE',
         },
-        timestamp: {
-            type: Date,
-            default: Date.now,
-        },
     },
     { timestamps: true }
 );
 
 // Create indexes for performance
-SensorDataSchema.index({ userId: 1, timestamp: -1 });
+SensorDataSchema.index({ userId: 1, createdAt: -1 });
 SensorDataSchema.index({ deviceId: 1 });
-SensorDataSchema.index({ timestamp: -1 });
+SensorDataSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('SensorData', SensorDataSchema);

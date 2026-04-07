@@ -9,14 +9,18 @@ const generateToken = (id, role) => {
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, role, deviceId } = req.body;
+        const { name, email, password, deviceId } = req.body;
+
+        if (!name || !email || !password || !deviceId) {
+            return res.status(400).json({ message: 'Please provide name, email, password, and deviceId' });
+        }
 
         const user = await User.create({
             name,
             email,
             password,
-            role,
             deviceId,
+            // role intentionally omitted — defaults to 'worker'
         });
 
         const token = generateToken(user._id, user.role);
@@ -31,7 +35,11 @@ exports.register = async (req, res) => {
             },
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        if (error.code === 11000) {
+            return res.status(409).json({ message: 'Email or Device ID already in use' });
+        }
+        console.error('Register error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };
 
@@ -60,6 +68,7 @@ exports.login = async (req, res) => {
             },
         });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'An internal server error occurred' });
     }
 };
