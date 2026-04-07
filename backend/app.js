@@ -27,7 +27,8 @@ const authLimiter = rateLimit({
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGIN || 'http://localhost:3000',
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'file://'],
+    credentials: true
 }));
 app.use(generalLimiter);
 
