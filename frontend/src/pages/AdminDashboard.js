@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Navbar from '../components/Navbar';
-import DashboardCard from '../components/DashboardCard';
-import Graph from '../components/Graph';
+import Navbar from '../components/Layout/Navbar';
+import Sidebar from '../components/Layout/Sidebar';
+import WorkerList from '../components/Admin/WorkerList';
+import WorkerDetail from '../components/Admin/WorkerDetail';
+import LoadingSpinner from '../components/Common/LoadingSpinner';
 import { getAllWorkers, getWorkerById } from '../services/api';
+import { formatDateTime } from '../utils/formatters';
 
 const REFRESH_INTERVAL = 30000;
-
-const statusIcon = (severity) => {
-    if (severity === 'CRITICAL') return '🚨';
-    if (severity === 'HIGH') return '⚠️';
-    return '✅';
-};
 
 const AdminDashboard = () => {
     const [workers, setWorkers] = useState([]);
@@ -19,11 +16,13 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [detailLoading, setDetailLoading] = useState(false);
     const [error, setError] = useState('');
+    const [lastUpdated, setLastUpdated] = useState(null);
 
     const fetchWorkers = useCallback(async () => {
         try {
             const res = await getAllWorkers();
             setWorkers(res.data.workers || []);
+            setLastUpdated(new Date());
             setError('');
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to load workers.');
@@ -52,107 +51,93 @@ const AdminDashboard = () => {
         }
     };
 
-    const latestReading = workerDetail?.recentData?.[0];
+    const activeCount = workers.filter((w) => w.isActive).length;
 
     return (
-        <div className="page">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
             <Navbar />
-            <div className="page-content">
-                <div className="page-header">
-                    <h2>Admin Dashboard</h2>
-                    <span className="refresh-hint">Auto-refreshes every 30s</span>
-                </div>
-
-                {loading && <div className="loading">Loading workers...</div>}
-                {error && <div className="alert alert-error">{error}</div>}
-
-                <div className="admin-layout">
-                    {/* Workers list */}
-                    <div className="workers-panel">
-                        <h3>Workers ({workers.length})</h3>
-                        {workers.length === 0 && !loading && (
-                            <div className="empty-state">No workers found.</div>
-                        )}
-                        <ul className="workers-list">
-                            {workers.map((w) => (
-                                <li
-                                    key={w._id}
-                                    className={`worker-item ${selectedWorker?._id === w._id ? 'selected' : ''}`}
-                                    onClick={() => handleSelectWorker(w)}
-                                >
-                                    <span className="worker-name">{w.name}</span>
-                                    <span className="worker-email">{w.email}</span>
-                                    <span className="worker-device">📟 {w.deviceId}</span>
-                                    <span className={`worker-status ${w.isActive ? 'active' : 'inactive'}`}>
-                                        {w.isActive ? '🟢 Active' : '🔴 Inactive'}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
+            <div className="flex flex-1">
+                <Sidebar />
+                <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
+                    {/* Page header */}
+                    <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
+                        <div>
+                            <h1 className="text-2xl font-bold text-gray-800">Admin Panel</h1>
+                            <p className="text-sm text-gray-500 mt-0.5">
+                                Monitor all workers and sensor data in real time
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {lastUpdated && (
+                                <span className="text-xs text-gray-400">
+                                    Updated {formatDateTime(lastUpdated)}
+                                </span>
+                            )}
+                            <button
+                                onClick={fetchWorkers}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-semibold transition"
+                            >
+                                <span>🔄</span> Refresh
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Worker detail */}
-                    <div className="detail-panel">
-                        {!selectedWorker && (
-                            <div className="empty-state">Select a worker to view details.</div>
-                        )}
+                    {/* Stats row */}
+                    {!loading && workers.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-blue-500">
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Total Workers</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{workers.length}</p>
+                            </div>
+                            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-green-500">
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Active</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{activeCount}</p>
+                            </div>
+                            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-red-400">
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Offline</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">
+                                    {workers.length - activeCount}
+                                </p>
+                            </div>
+                            <div className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-purple-400">
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Selected</p>
+                                <p className="text-sm font-semibold text-gray-700 mt-1 truncate">
+                                    {selectedWorker ? selectedWorker.name : '—'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
-                        {selectedWorker && (
-                            <>
-                                <h3>
-                                    {selectedWorker.name}
-                                    {latestReading && (
-                                        <span className={`severity-badge severity-${latestReading.severity?.toLowerCase()}`}>
-                                            {statusIcon(latestReading.severity)} {latestReading.severity}
-                                        </span>
-                                    )}
-                                </h3>
+                    {/* Error */}
+                    {error && !loading && (
+                        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-4 mb-5 text-sm">
+                            <span className="text-xl">❌</span>
+                            <div>
+                                <p className="font-semibold">Error</p>
+                                <p className="text-xs mt-0.5 opacity-80">{error}</p>
+                            </div>
+                        </div>
+                    )}
 
-                                {detailLoading && <div className="loading">Loading details...</div>}
+                    {loading && <LoadingSpinner message="Loading workers…" />}
 
-                                {latestReading && (
-                                    <div className="cards-grid">
-                                        <DashboardCard
-                                            title="Temperature"
-                                            value={latestReading.temperature}
-                                            unit="°C"
-                                            icon="🌡️"
-                                            severity={latestReading.severity}
-                                            label={latestReading.severity}
-                                        />
-                                        <DashboardCard
-                                            title="UV Index"
-                                            value={latestReading.uvIndex}
-                                            icon="☀️"
-                                            severity={latestReading.severity}
-                                            label={latestReading.severity}
-                                        />
-                                    </div>
-                                )}
-
-                                {latestReading?.alerts?.length > 0 && (
-                                    <div className={`alert-banner alert-${latestReading.severity?.toLowerCase()}`}>
-                                        <strong>⚠️ Alerts:</strong> {latestReading.alerts.join(', ')}
-                                    </div>
-                                )}
-
-                                {workerDetail?.recentData?.length > 0 && (
-                                    <div className="chart-section">
-                                        <h4>Historical Trends</h4>
-                                        <Graph
-                                            data={workerDetail.recentData}
-                                            title={`${selectedWorker.name} - Sensor Trends`}
-                                        />
-                                    </div>
-                                )}
-
-                                {!detailLoading && workerDetail?.recentData?.length === 0 && (
-                                    <div className="empty-state">No sensor data for this worker yet.</div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
+                    {/* Main admin layout */}
+                    {!loading && (
+                        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-5 items-start">
+                            <WorkerList
+                                workers={workers}
+                                selectedId={selectedWorker?._id}
+                                onSelect={handleSelectWorker}
+                                loading={false}
+                            />
+                            <WorkerDetail
+                                worker={selectedWorker}
+                                detail={workerDetail}
+                                loading={detailLoading}
+                            />
+                        </div>
+                    )}
+                </main>
             </div>
         </div>
     );
