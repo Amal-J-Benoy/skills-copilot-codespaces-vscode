@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const db = require('../config/db');
+const { InMemorySensorDataModel } = require('../config/inMemoryStore');
 
 const SensorDataSchema = new mongoose.Schema(
     {
@@ -37,4 +39,15 @@ SensorDataSchema.index({ userId: 1, createdAt: -1 });
 SensorDataSchema.index({ deviceId: 1 });
 SensorDataSchema.index({ createdAt: -1 });
 
-module.exports = mongoose.model('SensorData', SensorDataSchema);
+const MongooseSensorData = mongoose.model('SensorData', SensorDataSchema);
+
+/**
+ * Proxy that delegates to the Mongoose model when MongoDB is connected,
+ * or to the in-memory implementation otherwise.
+ */
+const SensorData = {
+    create: (...args) => db.isConnected() ? MongooseSensorData.create(...args) : InMemorySensorDataModel.create(...args),
+    find:   (...args) => db.isConnected() ? MongooseSensorData.find(...args)   : InMemorySensorDataModel.find(...args),
+};
+
+module.exports = SensorData;
