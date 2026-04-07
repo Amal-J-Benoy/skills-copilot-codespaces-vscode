@@ -8,6 +8,20 @@
     <title>Wearable Monitor</title>
   </head>
   <body>
+    <!-- Redirect to the correct page based on stored auth state -->
+    <script>
+      try {
+        var _u = JSON.parse(localStorage.getItem('user') || 'null');
+        var _t = localStorage.getItem('token');
+        if (_u && _t) {
+          window.location.replace(_u.role === 'admin' ? 'admin.html' : 'dashboard.html');
+        } else {
+          window.location.replace('login.html');
+        }
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    </script>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>

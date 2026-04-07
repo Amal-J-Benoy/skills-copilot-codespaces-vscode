@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2c3e50" />
+  <title>My Dashboard &ndash; Wearable Monitor</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="page">
+  <nav class="navbar" id="main-navbar"></nav>
+
+  <div class="page-content">
+    <div class="page-header">
+      <h2>My Dashboard</h2>
+      <span class="refresh-hint">Auto-refreshes every 30&nbsp;s</span>
+    </div>
+
+    <div id="loading" class="loading">Loading sensor data&hellip;</div>
+    <div id="error-msg" class="alert alert-error" style="display:none;"></div>
+    <div id="alert-banner" style="display:none;"></div>
+    <div id="cards-grid" class="cards-grid" style="display:none;"></div>
+    <div id="empty-state" class="empty-state" style="display:none;">
+      No sensor data recorded yet.
+    </div>
+
+    <div id="chart-section" class="chart-section" style="display:none;">
+      <h3>Historical Trends (last 20 readings)</h3>
+      <div class="graph-container">
+        <canvas id="sensor-chart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js from CDN (mirrors the chart.js ^4.4.x used in the React app) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+        crossorigin="anonymous"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  var currentUser = Auth.requireAuth('worker');
+  if (currentUser) {
+    Auth.renderNavbar(currentUser);
+  }
+
+  /* ---- helpers ---- */
+  var sensorChart = null;
+
+  function severityClass(s) {
+    if (s === 'CRITICAL') { return 'status-critical'; }
+    if (s === 'HIGH')     { return 'status-high'; }
+    return 'status-safe';
+  }
+
+  function cardHTML(title, value, unit, icon, severity, label) {
+    var sc  = severityClass(severity);
+    var val = (value !== undefined && value !== null) ? value : '\u2014';
+    return '<div class="dashboard-card ' + sc + '">' +
+      '<div class="card-header">' +
+        '<span class="card-icon">' + icon + '</span>' +
+        '<span class="card-title">' + title + '</span>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<span class="card-value">' + val + '</span>' +
+        (unit ? '<span class="card-unit">' + unit + '</span>' : '') +
+      '</div>' +
+      (label ? '<div class="card-status ' + sc + '">' + label + '</div>' : '') +
+      '</div>';
+  }
+
+  /* ---- render ---- */
+  function renderCards(latest) {
+    var sevIcon = latest.severity === 'SAFE'     ? '\u2705'
+                : latest.severity === 'HIGH'     ? '\u26A0\uFE0F'
+                :                                  '\uD83D\uDEA8';
+    var grid = document.getElementById('cards-grid');
+    grid.innerHTML =
+      cardHTML('Temperature', latest.temperature, '\u00B0C', '\uD83C\uDF21\uFE0F', latest.severity, latest.severity) +
+      cardHTML('UV Index',    latest.uvIndex,     '',        '\u2600\uFE0F',        latest.severity, latest.severity) +
+      cardHTML('Status',      latest.severity,    '',        sevIcon,               latest.severity, 'Device: ' + latest.deviceId);
+    grid.style.display = 'grid';
+  }
+
+  function renderAlertBanner(latest) {
+    var banner = document.getElementById('alert-banner');
+    if (latest.alerts && latest.alerts.length > 0) {
+      banner.className   = 'alert-banner alert-' + latest.severity.toLowerCase();
+      banner.innerHTML   = '<strong>\u26A0\uFE0F Active Alerts:</strong> ' + latest.alerts.join(', ');
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  function renderChart(data) {
+    var section = document.getElementById('chart-section');
+    if (!data || data.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+
+    var sorted = data.slice().reverse().slice(-20);
+    var labels = sorted.map(function (d) {
+      return new Date(d.createdAt || d.timestamp)
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+
+    var ctx = document.getElementById('sensor-chart').getContext('2d');
+    if (sensorChart) { sensorChart.destroy(); }
+    sensorChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Temperature (\u00B0C)',
+            data: sorted.map(function (d) { return d.temperature; }),
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231,76,60,0.15)',
+            tension: 0.3,
+            yAxisID: 'y'
+          },
+          {
+            label: 'UV Index',
+            data: sorted.map(function (d) { return d.uvIndex; }),
+            borderColor: '#f39c12',
+            backgroundColor: 'rgba(243,156,18,0.15)',
+            tension: 0.3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          title:  { display: true, text: 'Temperature & UV Index Over Time' }
+        },
+        scales: {
+          y: {
+            type: 'linear', display: true, position: 'left',
+            title: { display: true, text: 'Temperature (\u00B0C)' }
+          },
+          y1: {
+            type: 'linear', display: true, position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'UV Index' }
+          }
+        }
+      }
+    });
+  }
+
+  function render(sensorData) {
+    document.getElementById('loading').style.display = 'none';
+    if (!sensorData || sensorData.length === 0) {
+      document.getElementById('empty-state').style.display  = 'block';
+      document.getElementById('cards-grid').style.display   = 'none';
+      document.getElementById('alert-banner').style.display = 'none';
+      document.getElementById('chart-section').style.display = 'none';
+      return;
+    }
+    document.getElementById('empty-state').style.display = 'none';
+    renderCards(sensorData[0]);
+    renderAlertBanner(sensorData[0]);
+    renderChart(sensorData);
+  }
+
+  /* ---- data fetching ---- */
+  function fetchData() {
+    API.getSensorData()
+      .then(function (res) {
+        document.getElementById('error-msg').style.display = 'none';
+        render(res.data || []);
+      })
+      .catch(function (err) {
+        document.getElementById('loading').style.display = 'none';
+        var errEl       = document.getElementById('error-msg');
+        errEl.textContent = err.message || 'Failed to fetch sensor data.';
+        errEl.style.display = 'block';
+      });
+  }
+
+  if (currentUser) {
+    fetchData();
+    setInterval(fetchData, 30000);
+  }
+</script>
+
+</body>
+</html>
