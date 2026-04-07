@@ -39,14 +39,6 @@
       </div>
 
       <div class="form-group">
-        <label for="role">Role</label>
-        <select id="role" name="role">
-          <option value="worker">Worker</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-
-      <div class="form-group">
         <label for="deviceId">Device ID</label>
         <input id="deviceId" name="deviceId" type="text"
                placeholder="ESP32-001" required />
@@ -94,7 +86,6 @@
     var name     = document.getElementById('name').value.trim();
     var email    = document.getElementById('email').value.trim();
     var password = document.getElementById('password').value;
-    var role     = document.getElementById('role').value;
     var deviceId = document.getElementById('deviceId').value.trim();
 
     if (!name)     { showError('Full name is required.');   return; }
@@ -105,9 +96,11 @@
     btn.disabled    = true;
     btn.textContent = 'Please wait\u2026';
 
-    API.register({ name: name, email: email, password: password, role: role, deviceId: deviceId })
+    API.register({ name: name, email: email, password: password, deviceId: deviceId })
       .then(function (data) {
         Auth.setAuth(data.token, data.user);
+        // role is always 'worker' (backend ignores any sent value); redirect
+        // based on server-assigned role in case that ever changes.
         window.location.replace(data.user.role === 'admin' ? 'admin.html' : 'dashboard.html');
       })
       .catch(function (err) {

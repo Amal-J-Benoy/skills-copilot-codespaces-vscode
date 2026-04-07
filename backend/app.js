@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/authRoutes');
 const sensorRoutes = require('./routes/sensorRoutes');
@@ -24,11 +25,17 @@ const authLimiter = rateLimit({
     message: { message: 'Too many authentication attempts, please try again later' },
 });
 
+// Resolve allowed CORS origins from the environment or fall back to common dev ports.
+// Set ALLOWED_ORIGINS as a comma-separated list in .env to override.
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'file://'],
-    credentials: true
+    origin: allowedOrigins,
+    credentials: true,
 }));
 app.use(generalLimiter);
 
@@ -41,5 +48,9 @@ app.use('/api', adminRoutes);
 app.get('/health', (req, res) => {
     res.status(200).json({ message: 'Server is running' });
 });
+
+// Serve the static HTML frontend — placed after API routes so API paths
+// are matched first and static file serving acts as a fallback.
+app.use(express.static(path.join(__dirname, '../frontend/public')));
 
 module.exports = app;

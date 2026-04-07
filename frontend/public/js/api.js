@@ -39,6 +39,9 @@ var API = (function () {
         getAllWorkers: function () {
             return request('GET', '/all-workers');
         },
+        getAllData: function () {
+            return request('GET', '/all-data');
+        },
         getWorkerById: function (id) {
             return request('GET', '/worker/' + id);
         }
