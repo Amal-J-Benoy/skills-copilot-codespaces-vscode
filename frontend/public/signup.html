@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2c3e50" />
+  <title>Sign Up &ndash; Wearable Monitor</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="login-header">
+      <span class="login-icon">&#x1F9BA;</span>
+      <h1 class="login-title">Create Account</h1>
+      <p class="login-subtitle">Smart Workforce Safety System</p>
+    </div>
+
+    <form id="signup-form" class="login-form" novalidate>
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input id="name" name="name" type="text"
+               placeholder="Jane Smith" autocomplete="name" required />
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email"
+               placeholder="user@example.com" autocomplete="email" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password"
+               placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
+               autocomplete="new-password" required />
+      </div>
+
+      <div class="form-group">
+        <label for="role">Role</label>
+        <select id="role" name="role">
+          <option value="worker">Worker</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="deviceId">Device ID</label>
+        <input id="deviceId" name="deviceId" type="text"
+               placeholder="ESP32-001" required />
+      </div>
+
+      <div id="error-msg" class="alert alert-error" style="display:none;"></div>
+
+      <button type="submit" id="submit-btn" class="btn btn-primary btn-full">
+        Register
+      </button>
+    </form>
+
+    <p class="login-footer">
+      Already have an account?
+      <a href="login.html">Log in</a>
+    </p>
+
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  // Redirect immediately if already authenticated
+  (function () {
+    var user = Auth.getUser();
+    if (user && Auth.getToken()) {
+      window.location.replace(user.role === 'admin' ? 'admin.html' : 'dashboard.html');
+    }
+  }());
+
+  var form  = document.getElementById('signup-form');
+  var errEl = document.getElementById('error-msg');
+  var btn   = document.getElementById('submit-btn');
+
+  function showError(msg) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    errEl.style.display = 'none';
+
+    var name     = document.getElementById('name').value.trim();
+    var email    = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var role     = document.getElementById('role').value;
+    var deviceId = document.getElementById('deviceId').value.trim();
+
+    if (!name)     { showError('Full name is required.');   return; }
+    if (!email)    { showError('Email is required.');       return; }
+    if (!password) { showError('Password is required.');    return; }
+    if (!deviceId) { showError('Device ID is required.');   return; }
+
+    btn.disabled    = true;
+    btn.textContent = 'Please wait\u2026';
+
+    API.register({ name: name, email: email, password: password, role: role, deviceId: deviceId })
+      .then(function (data) {
+        Auth.setAuth(data.token, data.user);
+        window.location.replace(data.user.role === 'admin' ? 'admin.html' : 'dashboard.html');
+      })
+      .catch(function (err) {
+        showError(err.message || 'Registration failed. Please try again.');
+        btn.disabled    = false;
+        btn.textContent = 'Register';
+      });
+  });
+</script>
+
+</body>
+</html>

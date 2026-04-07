@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2c3e50" />
+  <title>Admin Dashboard &ndash; Wearable Monitor</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="page">
+  <nav class="navbar" id="main-navbar"></nav>
+
+  <div class="page-content">
+    <div class="page-header">
+      <h2>Admin Dashboard</h2>
+      <span class="refresh-hint">Auto-refreshes every 30&nbsp;s</span>
+    </div>
+
+    <div id="loading" class="loading">Loading workers&hellip;</div>
+    <div id="error-msg" class="alert alert-error" style="display:none;"></div>
+
+    <div class="admin-layout">
+
+      <!-- Left: workers list -->
+      <div class="workers-panel">
+        <h3 id="workers-heading">Workers</h3>
+        <div id="workers-empty" class="empty-state" style="display:none;">No workers found.</div>
+        <ul class="workers-list" id="workers-list"></ul>
+      </div>
+
+      <!-- Right: worker detail -->
+      <div class="detail-panel">
+        <div id="detail-prompt" class="empty-state">
+          Select a worker to view details.
+        </div>
+
+        <div id="detail-content" style="display:none;">
+          <h3 id="detail-name"></h3>
+          <div id="detail-loading" class="loading" style="display:none;">
+            Loading details&hellip;
+          </div>
+          <div id="detail-cards" class="cards-grid" style="display:none;"></div>
+          <div id="detail-alert" style="display:none;"></div>
+          <div id="detail-chart-section" class="chart-section" style="display:none;">
+            <h4>Historical Trends</h4>
+            <div class="graph-container">
+              <canvas id="worker-chart"></canvas>
+            </div>
+          </div>
+          <div id="detail-empty" class="empty-state" style="display:none;">
+            No sensor data for this worker yet.
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.admin-layout -->
+  </div><!-- /.page-content -->
+</div><!-- /.page -->
+
+<!-- Chart.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+        crossorigin="anonymous"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  var currentUser = Auth.requireAuth('admin');
+  if (currentUser) {
+    Auth.renderNavbar(currentUser);
+  }
+
+  /* ---- state ---- */
+  var selectedWorkerId = null;
+  var workerChart      = null;
+
+  /* ---- helpers ---- */
+  function severityClass(s) {
+    if (s === 'CRITICAL') { return 'status-critical'; }
+    if (s === 'HIGH')     { return 'status-high'; }
+    return 'status-safe';
+  }
+
+  function cardHTML(title, value, unit, icon, severity, label) {
+    var sc  = severityClass(severity);
+    var val = (value !== undefined && value !== null) ? value : '\u2014';
+    return '<div class="dashboard-card ' + sc + '">' +
+      '<div class="card-header">' +
+        '<span class="card-icon">' + icon + '</span>' +
+        '<span class="card-title">' + title + '</span>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<span class="card-value">' + val + '</span>' +
+        (unit ? '<span class="card-unit">' + unit + '</span>' : '') +
+      '</div>' +
+      (label ? '<div class="card-status ' + sc + '">' + label + '</div>' : '') +
+      '</div>';
+  }
+
+  /* ---- workers list ---- */
+  function renderWorkers(workers) {
+    var heading   = document.getElementById('workers-heading');
+    var listEl    = document.getElementById('workers-list');
+    var emptyEl   = document.getElementById('workers-empty');
+    var loadingEl = document.getElementById('loading');
+
+    loadingEl.style.display = 'none';
+    heading.textContent = 'Workers (' + workers.length + ')';
+
+    if (workers.length === 0) {
+      emptyEl.style.display = 'block';
+      listEl.innerHTML = '';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    listEl.innerHTML = workers.map(function (w) {
+      var isSelected = selectedWorkerId === w._id;
+      var statusCls  = w.isActive ? 'active' : 'inactive';
+      var statusTxt  = w.isActive ? '\uD83D\uDFE2 Active' : '\uD83D\uDD34 Inactive';
+      return '<li class="worker-item' + (isSelected ? ' selected' : '') + '" ' +
+               'data-id="' + escapeHTML(w._id) + '" ' +
+               'data-name="' + escapeHTML(w.name) + '">' +
+               '<span class="worker-name">' + escapeHTML(w.name) + '</span>' +
+               '<span class="worker-email">' + escapeHTML(w.email) + '</span>' +
+               '<span class="worker-device">\uD83D\uDCDF ' + escapeHTML(w.deviceId) + '</span>' +
+               '<span class="worker-status ' + statusCls + '">' + statusTxt + '</span>' +
+             '</li>';
+    }).join('');
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ---- worker detail ---- */
+  function showDetailLoading() {
+    document.getElementById('detail-prompt').style.display   = 'none';
+    document.getElementById('detail-content').style.display  = 'block';
+    document.getElementById('detail-loading').style.display  = 'block';
+    document.getElementById('detail-cards').style.display    = 'none';
+    document.getElementById('detail-alert').style.display    = 'none';
+    document.getElementById('detail-chart-section').style.display = 'none';
+    document.getElementById('detail-empty').style.display    = 'none';
+  }
+
+  function renderDetail(workerName, detail) {
+    var recentData   = (detail && detail.recentData) ? detail.recentData : [];
+    var latestReading = recentData[0] || null;
+
+    document.getElementById('detail-loading').style.display = 'none';
+
+    /* heading + severity badge */
+    var badgeHTML = '';
+    if (latestReading) {
+      var sev     = latestReading.severity || 'SAFE';
+      var sevIcon = sev === 'SAFE' ? '\u2705' : sev === 'HIGH' ? '\u26A0\uFE0F' : '\uD83D\uDEA8';
+      badgeHTML   = ' <span class="severity-badge severity-' + sev.toLowerCase() + '">' +
+                      sevIcon + ' ' + sev +
+                    '</span>';
+    }
+    document.getElementById('detail-name').innerHTML = escapeHTML(workerName) + badgeHTML;
+
+    /* cards */
+    var cardsEl = document.getElementById('detail-cards');
+    if (latestReading) {
+      cardsEl.innerHTML =
+        cardHTML('Temperature', latestReading.temperature, '\u00B0C', '\uD83C\uDF21\uFE0F',
+                 latestReading.severity, latestReading.severity) +
+        cardHTML('UV Index',    latestReading.uvIndex,     '',        '\u2600\uFE0F',
+                 latestReading.severity, latestReading.severity);
+      cardsEl.style.display = 'grid';
+    } else {
+      cardsEl.style.display = 'none';
+    }
+
+    /* alert banner */
+    var alertEl = document.getElementById('detail-alert');
+    if (latestReading && latestReading.alerts && latestReading.alerts.length > 0) {
+      alertEl.className   = 'alert-banner alert-' + latestReading.severity.toLowerCase();
+      alertEl.innerHTML   = '<strong>\u26A0\uFE0F Alerts:</strong> ' + latestReading.alerts.join(', ');
+      alertEl.style.display = 'block';
+    } else {
+      alertEl.style.display = 'none';
+    }
+
+    /* chart */
+    var chartSection = document.getElementById('detail-chart-section');
+    var emptyEl      = document.getElementById('detail-empty');
+    if (recentData.length > 0) {
+      emptyEl.style.display      = 'none';
+      chartSection.style.display = 'block';
+      renderWorkerChart(recentData, workerName);
+    } else {
+      chartSection.style.display = 'none';
+      emptyEl.style.display      = 'block';
+    }
+  }
+
+  function renderWorkerChart(data, workerName) {
+    var sorted = data.slice().reverse().slice(-20);
+    var labels = sorted.map(function (d) {
+      return new Date(d.createdAt || d.timestamp)
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+    var ctx = document.getElementById('worker-chart').getContext('2d');
+    if (workerChart) { workerChart.destroy(); }
+    workerChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Temperature (\u00B0C)',
+            data: sorted.map(function (d) { return d.temperature; }),
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231,76,60,0.15)',
+            tension: 0.3,
+            yAxisID: 'y'
+          },
+          {
+            label: 'UV Index',
+            data: sorted.map(function (d) { return d.uvIndex; }),
+            borderColor: '#f39c12',
+            backgroundColor: 'rgba(243,156,18,0.15)',
+            tension: 0.3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          title:  { display: true, text: workerName + ' \u2013 Sensor Trends' }
+        },
+        scales: {
+          y: {
+            type: 'linear', display: true, position: 'left',
+            title: { display: true, text: 'Temperature (\u00B0C)' }
+          },
+          y1: {
+            type: 'linear', display: true, position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'UV Index' }
+          }
+        }
+      }
+    });
+  }
+
+  /* ---- click handler via event delegation on the workers list ---- */
+  function handleSelectWorker(workerId, workerName) {
+    /* update selected highlight */
+    var allItems = document.querySelectorAll('.worker-item');
+    for (var i = 0; i < allItems.length; i++) {
+      allItems[i].classList.remove('selected');
+    }
+    var clickedItem = document.querySelector('.worker-item[data-id="' + workerId + '"]');
+    if (clickedItem) { clickedItem.classList.add('selected'); }
+
+    selectedWorkerId = workerId;
+    showDetailLoading();
+    document.getElementById('detail-name').textContent = workerName;
+
+    API.getWorkerById(workerId)
+      .then(function (data) {
+        renderDetail(workerName, data);
+      })
+      .catch(function (err) {
+        document.getElementById('detail-loading').style.display = 'none';
+        var errEl       = document.getElementById('error-msg');
+        errEl.textContent = err.message || 'Failed to load worker details.';
+        errEl.style.display = 'block';
+      });
+  }
+
+  /* attach event delegation after DOM is ready */
+  document.getElementById('workers-list').addEventListener('click', function (e) {
+    var item = e.target.closest('.worker-item');
+    if (!item) { return; }
+    handleSelectWorker(item.dataset.id, item.dataset.name);
+  });
+
+  /* ---- workers list fetch ---- */
+  var cachedWorkers = [];
+
+  function fetchWorkers() {
+    API.getAllWorkers()
+      .then(function (res) {
+        cachedWorkers = res.workers || [];
+        document.getElementById('error-msg').style.display = 'none';
+        renderWorkers(cachedWorkers);
+      })
+      .catch(function (err) {
+        document.getElementById('loading').style.display = 'none';
+        var errEl       = document.getElementById('error-msg');
+        errEl.textContent = err.message || 'Failed to load workers.';
+        errEl.style.display = 'block';
+      });
+  }
+
+  if (currentUser) {
+    fetchWorkers();
+    setInterval(fetchWorkers, 30000);
+  }
+</script>
+
+</body>
+</html>
