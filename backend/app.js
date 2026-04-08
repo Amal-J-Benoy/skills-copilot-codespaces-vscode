@@ -8,6 +8,9 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+// Trust proxy - fixes X-Forwarded-For header warnings
+app.set('trust proxy', 1);
+
 // Rate limiters
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
