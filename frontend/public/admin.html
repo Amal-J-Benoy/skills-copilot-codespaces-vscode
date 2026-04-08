@@ -26,6 +26,10 @@
       <!-- Left: workers list -->
       <div class="workers-panel">
         <h3 id="workers-heading">Workers</h3>
+        <div class="search-bar-wrapper">
+          <input type="search" id="worker-search" class="search-input"
+                 placeholder="&#x1F50D; Search by name or email&hellip;" autocomplete="off" />
+        </div>
         <div id="workers-empty" class="empty-state" style="display:none;">No workers found.</div>
         <ul class="workers-list" id="workers-list"></ul>
       </div>
@@ -122,10 +126,21 @@
       return '<li class="worker-item' + (isSelected ? ' selected' : '') + '" ' +
                'data-id="' + escapeHTML(w._id) + '" ' +
                'data-name="' + escapeHTML(w.name) + '">' +
-               '<span class="worker-name">' + escapeHTML(w.name) + '</span>' +
-               '<span class="worker-email">' + escapeHTML(w.email) + '</span>' +
-               '<span class="worker-device">\uD83D\uDCDF ' + escapeHTML(w.deviceId) + '</span>' +
-               '<span class="worker-status ' + statusCls + '">' + statusTxt + '</span>' +
+               '<div class="worker-item-main">' +
+                 '<span class="worker-name">' + escapeHTML(w.name) + '</span>' +
+                 '<span class="worker-email">' + escapeHTML(w.email) + '</span>' +
+                 '<span class="worker-device">\uD83D\uDCDF ' + escapeHTML(w.deviceId) + '</span>' +
+                 '<span class="worker-status ' + statusCls + '">' + statusTxt + '</span>' +
+               '</div>' +
+               '<div class="worker-item-actions">' +
+                 '<button class="btn btn-sm btn-view-detail" ' +
+                   'data-id="' + escapeHTML(w._id) + '" ' +
+                   'data-name="' + escapeHTML(w.name) + '" ' +
+                   'title="View details">&#x1F4CA; Details</button>' +
+                 '<a class="btn btn-sm btn-profile-link" ' +
+                   'href="worker-profile.html?id=' + encodeURIComponent(w._id) + '&name=' + encodeURIComponent(w.name) + '" ' +
+                   'title="Full profile">&#x1F464; Profile</a>' +
+               '</div>' +
              '</li>';
     }).join('');
   }
@@ -283,9 +298,29 @@
 
   /* attach event delegation after DOM is ready */
   document.getElementById('workers-list').addEventListener('click', function (e) {
+    /* "Details" button click */
+    var detailBtn = e.target.closest('.btn-view-detail');
+    if (detailBtn) {
+      e.stopPropagation();
+      handleSelectWorker(detailBtn.dataset.id, detailBtn.dataset.name);
+      return;
+    }
+    /* Profile link – let the browser navigate normally */
+    if (e.target.closest('.btn-profile-link')) { return; }
+    /* Click on worker-item row itself */
     var item = e.target.closest('.worker-item');
     if (!item) { return; }
     handleSelectWorker(item.dataset.id, item.dataset.name);
+  });
+
+  /* ---- search / filter ---- */
+  document.getElementById('worker-search').addEventListener('input', function () {
+    var query = this.value.trim().toLowerCase();
+    var filtered = cachedWorkers.filter(function (w) {
+      return w.name.toLowerCase().indexOf(query) !== -1 ||
+             w.email.toLowerCase().indexOf(query) !== -1;
+    });
+    renderWorkers(filtered);
   });
 
   /* ---- workers list fetch ---- */

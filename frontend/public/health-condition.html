@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#2c3e50" />
-  <title>My Dashboard &ndash; Wearable Monitor</title>
+  <title>Health Condition &ndash; Wearable Monitor</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -14,31 +14,47 @@
 
   <div class="page-content">
     <div class="page-header">
-      <h2>My Dashboard</h2>
-      <div class="page-header-actions">
-        <a href="health-condition.html" class="btn btn-health">&#x2764;&#xFE0F; Health Condition</a>
-        <span class="refresh-hint">Auto-refreshes every 30&nbsp;s</span>
+      <h2>&#x2764;&#xFE0F; Health Condition</h2>
+      <span class="refresh-hint">Auto-refreshes every 30&nbsp;s</span>
+    </div>
+
+    <div id="loading" class="loading">Loading health data&hellip;</div>
+    <div id="error-msg" class="alert alert-error" style="display:none;"></div>
+
+    <!-- Health status badge -->
+    <div id="status-section" style="display:none;">
+      <div class="health-status-bar">
+        <div id="health-status-badge" class="health-status-badge"></div>
+        <div class="device-info" id="device-info"></div>
       </div>
     </div>
 
-    <div id="loading" class="loading">Loading sensor data&hellip;</div>
-    <div id="error-msg" class="alert alert-error" style="display:none;"></div>
+    <!-- Alert banner -->
     <div id="alert-banner" style="display:none;"></div>
+
+    <!-- Metric cards -->
     <div id="cards-grid" class="cards-grid" style="display:none;"></div>
-    <div id="empty-state" class="empty-state" style="display:none;">
-      No sensor data recorded yet.
+
+    <!-- Active alerts list -->
+    <div id="alerts-section" class="alerts-section" style="display:none;">
+      <h3>&#x26A0;&#xFE0F; Active Alerts</h3>
+      <ul id="alerts-list" class="alerts-list"></ul>
     </div>
 
+    <!-- Historical chart -->
     <div id="chart-section" class="chart-section" style="display:none;">
       <h3>Historical Trends (last 20 readings)</h3>
       <div class="graph-container">
         <canvas id="sensor-chart"></canvas>
       </div>
     </div>
+
+    <div id="empty-state" class="empty-state" style="display:none;">
+      No health data recorded yet. Make sure your device is sending data.
+    </div>
   </div>
 </div>
 
-<!-- Chart.js from CDN (mirrors the chart.js ^4.4.x used in the React app) -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
         integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
         crossorigin="anonymous"></script>
@@ -50,13 +66,19 @@
     Auth.renderNavbar(currentUser);
   }
 
-  /* ---- helpers ---- */
   var sensorChart = null;
 
+  /* ---- helpers ---- */
   function severityClass(s) {
     if (s === 'CRITICAL') { return 'status-critical'; }
     if (s === 'HIGH')     { return 'status-high'; }
     return 'status-safe';
+  }
+
+  function severityLabel(s) {
+    if (s === 'CRITICAL') { return '&#x1F6A8; CRITICAL'; }
+    if (s === 'HIGH')     { return '&#x26A0;&#xFE0F; HIGH'; }
+    return '&#x2705; SAFE';
   }
 
   function cardHTML(title, value, unit, icon, severity, label) {
@@ -75,16 +97,43 @@
       '</div>';
   }
 
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   /* ---- render ---- */
+  function renderStatusBadge(latest) {
+    var section = document.getElementById('status-section');
+    var badge   = document.getElementById('health-status-badge');
+    var devInfo = document.getElementById('device-info');
+
+    var sev = latest.severity || 'SAFE';
+    badge.className = 'health-status-badge health-badge-' + sev.toLowerCase();
+    badge.innerHTML = severityLabel(sev) + ' &ndash; Health Status';
+
+    devInfo.innerHTML =
+      '&#x1F4DF; Device: <strong>' + escapeHTML(latest.deviceId || '\u2014') + '</strong>' +
+      ' &nbsp;|&nbsp; Last updated: <strong>' +
+        new Date(latest.createdAt || latest.timestamp).toLocaleString() +
+      '</strong>';
+
+    section.style.display = 'block';
+  }
+
   function renderCards(latest) {
-    var sevIcon = latest.severity === 'SAFE'     ? '\u2705'
-                : latest.severity === 'HIGH'     ? '\u26A0\uFE0F'
-                :                                  '\uD83D\uDEA8';
     var grid = document.getElementById('cards-grid');
     grid.innerHTML =
-      cardHTML('Temperature', latest.temperature, '\u00B0C', '\uD83C\uDF21\uFE0F', latest.severity, latest.severity) +
-      cardHTML('UV Index',    latest.uvIndex,     '',        '\u2600\uFE0F',        latest.severity, latest.severity) +
-      cardHTML('Status',      latest.severity,    '',        sevIcon,               latest.severity, 'Device: ' + latest.deviceId);
+      cardHTML('Temperature', latest.temperature, '\u00B0C', '\uD83C\uDF21\uFE0F',
+               latest.severity, latest.severity) +
+      cardHTML('UV Index',    latest.uvIndex,     '',        '\u2600\uFE0F',
+               latest.severity, latest.severity) +
+      cardHTML('Status',      latest.severity,    '',
+               latest.severity === 'SAFE' ? '\u2705' : latest.severity === 'HIGH' ? '\u26A0\uFE0F' : '\uD83D\uDEA8',
+               latest.severity, 'Overall Condition');
     grid.style.display = 'grid';
   }
 
@@ -97,6 +146,34 @@
     } else {
       banner.style.display = 'none';
     }
+  }
+
+  function renderAlertsList(data) {
+    var section   = document.getElementById('alerts-section');
+    var listEl    = document.getElementById('alerts-list');
+
+    var allAlerts = [];
+    data.forEach(function (reading) {
+      if (reading.alerts && reading.alerts.length > 0) {
+        var ts = new Date(reading.createdAt || reading.timestamp).toLocaleString();
+        reading.alerts.forEach(function (a) {
+          allAlerts.push({ text: a, ts: ts, severity: reading.severity });
+        });
+      }
+    });
+
+    if (allAlerts.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    listEl.innerHTML = allAlerts.slice(0, 10).map(function (a) {
+      return '<li class="alert-item alert-item-' + a.severity.toLowerCase() + '">' +
+               '<span class="alert-time">' + escapeHTML(a.ts) + '</span>' +
+               '<span class="alert-text">' + escapeHTML(a.text) + '</span>' +
+             '</li>';
+    }).join('');
+    section.style.display = 'block';
   }
 
   function renderChart(data) {
@@ -163,12 +240,16 @@
       document.getElementById('empty-state').style.display  = 'block';
       document.getElementById('cards-grid').style.display   = 'none';
       document.getElementById('alert-banner').style.display = 'none';
+      document.getElementById('status-section').style.display = 'none';
+      document.getElementById('alerts-section').style.display = 'none';
       document.getElementById('chart-section').style.display = 'none';
       return;
     }
     document.getElementById('empty-state').style.display = 'none';
+    renderStatusBadge(sensorData[0]);
     renderCards(sensorData[0]);
     renderAlertBanner(sensorData[0]);
+    renderAlertsList(sensorData);
     renderChart(sensorData);
   }
 
@@ -182,7 +263,7 @@
       .catch(function (err) {
         document.getElementById('loading').style.display = 'none';
         var errEl       = document.getElementById('error-msg');
-        errEl.textContent = err.message || 'Failed to fetch sensor data.';
+        errEl.textContent = err.message || 'Failed to fetch health data.';
         errEl.style.display = 'block';
       });
   }

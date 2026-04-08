@@ -570,3 +570,292 @@ body {
         padding: 1rem;
     }
 }
+
+/* ===== Page Header Actions ===== */
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-header-back {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* ===== Buttons (additional variants) ===== */
+.btn-health {
+    background: #e74c3c;
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-health:hover {
+    background: #c0392b;
+}
+
+.btn-secondary {
+    background: #7f8c8d;
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.btn-secondary:hover {
+    background: #636e72;
+}
+
+.btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
+}
+
+.btn-view-detail {
+    background: #3498db;
+    color: #fff;
+}
+
+.btn-view-detail:hover {
+    background: #2980b9;
+}
+
+.btn-profile-link {
+    background: #27ae60;
+    color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.btn-profile-link:hover {
+    background: #229954;
+}
+
+/* ===== Search Bar ===== */
+.search-bar-wrapper {
+    margin-bottom: 0.75rem;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #dce1e7;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    border-color: #3498db;
+}
+
+/* ===== Worker Item Actions ===== */
+.worker-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+}
+
+.worker-item-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+    flex-wrap: wrap;
+}
+
+/* ===== Health Status Badge (health-condition.html) ===== */
+.health-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    background: #fff;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 1.25rem;
+}
+
+.health-status-badge {
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.health-badge-safe {
+    background: #d5f5e3;
+    color: #1e8449;
+}
+
+.health-badge-high {
+    background: #fdebd0;
+    color: #d35400;
+}
+
+.health-badge-critical {
+    background: #fadbd8;
+    color: #c0392b;
+    animation: pulse 1.5s infinite;
+}
+
+.device-info {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+}
+
+/* ===== Alerts List ===== */
+.alerts-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 1.25rem;
+}
+
+.alerts-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #2c3e50;
+}
+
+.alerts-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+.alert-item-safe {
+    background: #d5f5e3;
+    color: #1e8449;
+}
+
+.alert-item-high {
+    background: #fdebd0;
+    color: #d35400;
+}
+
+.alert-item-critical {
+    background: #fadbd8;
+    color: #c0392b;
+}
+
+.alert-time {
+    white-space: nowrap;
+    font-size: 0.78rem;
+    opacity: 0.8;
+    min-width: 120px;
+}
+
+.alert-text {
+    font-weight: 500;
+}
+
+/* ===== Worker Profile Page ===== */
+.profile-info-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.profile-avatar {
+    font-size: 3.5rem;
+    line-height: 1;
+}
+
+.profile-details {
+    flex: 1;
+    min-width: 200px;
+}
+
+.profile-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.profile-meta-item {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.role-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.severity-badge-large {
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+}
+
+.section-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+/* ===== Responsive extras ===== */
+@media (max-width: 768px) {
+    .health-status-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .profile-info-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .page-header-back {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .worker-item-actions {
+        flex-direction: column;
+    }
+}

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2c3e50" />
+  <title>Worker Profile &ndash; Wearable Monitor</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<div class="page">
+  <nav class="navbar" id="main-navbar"></nav>
+
+  <div class="page-content">
+    <div class="page-header">
+      <div class="page-header-back">
+        <a href="admin.html" class="btn btn-secondary">&#x2190; Back to Admin</a>
+        <h2 id="profile-title">Worker Profile</h2>
+      </div>
+      <span class="refresh-hint">Auto-refreshes every 30&nbsp;s</span>
+    </div>
+
+    <div id="loading" class="loading">Loading worker profile&hellip;</div>
+    <div id="error-msg" class="alert alert-error" style="display:none;"></div>
+
+    <div id="profile-content" style="display:none;">
+
+      <!-- Worker info card -->
+      <div class="profile-info-card">
+        <div class="profile-avatar">&#x1F464;</div>
+        <div class="profile-details">
+          <h3 id="profile-name" class="profile-name"></h3>
+          <div class="profile-meta">
+            <span id="profile-email" class="profile-meta-item">&#x2709;&#xFE0F; &ndash;</span>
+            <span id="profile-device" class="profile-meta-item">&#x1F4DF; &ndash;</span>
+            <span id="profile-role" class="profile-meta-item role-badge"></span>
+            <span id="profile-status" class="profile-meta-item"></span>
+          </div>
+        </div>
+        <div id="profile-severity-badge" class="severity-badge-large"></div>
+      </div>
+
+      <!-- Alert banner -->
+      <div id="alert-banner" style="display:none;"></div>
+
+      <!-- Sensor reading cards -->
+      <h3 class="section-heading">&#x1F4CA; Current Readings</h3>
+      <div id="cards-grid" class="cards-grid" style="display:none;"></div>
+      <div id="readings-empty" class="empty-state" style="display:none;">
+        No sensor readings available for this worker yet.
+      </div>
+
+      <!-- Alert history -->
+      <div id="alerts-section" class="alerts-section" style="display:none;">
+        <h3 class="section-heading">&#x26A0;&#xFE0F; Alert History</h3>
+        <ul id="alerts-list" class="alerts-list"></ul>
+      </div>
+
+      <!-- Historical chart -->
+      <div id="chart-section" class="chart-section" style="display:none;">
+        <h3>Historical Trends (last 20 readings)</h3>
+        <div class="graph-container">
+          <canvas id="worker-chart"></canvas>
+        </div>
+      </div>
+
+    </div><!-- /#profile-content -->
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+        integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
+        crossorigin="anonymous"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script>
+  var currentUser = Auth.requireAuth('admin');
+  if (currentUser) {
+    Auth.renderNavbar(currentUser);
+  }
+
+  var workerChart = null;
+
+  /* ---- parse query params ---- */
+  function getParam(name) {
+    var params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  var workerId   = getParam('id');
+  var workerName = getParam('name') || 'Worker';
+
+  if (!workerId) {
+    document.getElementById('loading').style.display = 'none';
+    var errEl = document.getElementById('error-msg');
+    errEl.textContent = 'No worker ID provided. Please go back and select a worker.';
+    errEl.style.display = 'block';
+  } else {
+    document.getElementById('profile-title').textContent = decodeURIComponent(workerName) + ' \u2013 Profile';
+  }
+
+  /* ---- helpers ---- */
+  function severityClass(s) {
+    if (s === 'CRITICAL') { return 'status-critical'; }
+    if (s === 'HIGH')     { return 'status-high'; }
+    return 'status-safe';
+  }
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function cardHTML(title, value, unit, icon, severity, label) {
+    var sc  = severityClass(severity);
+    var val = (value !== undefined && value !== null) ? value : '\u2014';
+    return '<div class="dashboard-card ' + sc + '">' +
+      '<div class="card-header">' +
+        '<span class="card-icon">' + icon + '</span>' +
+        '<span class="card-title">' + title + '</span>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<span class="card-value">' + val + '</span>' +
+        (unit ? '<span class="card-unit">' + unit + '</span>' : '') +
+      '</div>' +
+      (label ? '<div class="card-status ' + sc + '">' + label + '</div>' : '') +
+      '</div>';
+  }
+
+  /* ---- render ---- */
+  function renderProfile(workerName, detail) {
+    var recentData    = (detail && detail.recentData) ? detail.recentData : [];
+    var latestReading = recentData[0] || null;
+    var worker        = detail && detail.worker ? detail.worker : null;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('profile-content').style.display = 'block';
+
+    /* profile info */
+    var name = (worker && worker.name) ? worker.name : decodeURIComponent(workerName);
+    document.getElementById('profile-name').textContent = name;
+
+    if (worker) {
+      document.getElementById('profile-email').innerHTML =
+        '&#x2709;&#xFE0F; ' + escapeHTML(worker.email || '\u2014');
+      document.getElementById('profile-device').innerHTML =
+        '&#x1F4DF; ' + escapeHTML(worker.deviceId || '\u2014');
+
+      var roleEl = document.getElementById('profile-role');
+      roleEl.textContent = (worker.role || 'worker').toUpperCase();
+      roleEl.className = 'profile-meta-item role-badge role-' + (worker.role || 'worker');
+
+      var statusEl  = document.getElementById('profile-status');
+      var isActive  = worker.isActive !== false;
+      statusEl.className = 'profile-meta-item worker-status ' + (isActive ? 'active' : 'inactive');
+      statusEl.textContent = isActive ? '\uD83D\uDFE2 Active' : '\uD83D\uDD34 Inactive';
+    }
+
+    /* severity badge */
+    var badgeEl = document.getElementById('profile-severity-badge');
+    if (latestReading) {
+      var sev     = latestReading.severity || 'SAFE';
+      var sevIcon = sev === 'SAFE' ? '\u2705' : sev === 'HIGH' ? '\u26A0\uFE0F' : '\uD83D\uDEA8';
+      badgeEl.className = 'severity-badge-large severity-' + sev.toLowerCase();
+      badgeEl.innerHTML = sevIcon + ' ' + sev;
+    } else {
+      badgeEl.style.display = 'none';
+    }
+
+    /* alert banner */
+    var alertEl = document.getElementById('alert-banner');
+    if (latestReading && latestReading.alerts && latestReading.alerts.length > 0) {
+      alertEl.className    = 'alert-banner alert-' + latestReading.severity.toLowerCase();
+      alertEl.innerHTML    = '<strong>\u26A0\uFE0F Alerts:</strong> ' + latestReading.alerts.join(', ');
+      alertEl.style.display = 'block';
+    } else {
+      alertEl.style.display = 'none';
+    }
+
+    /* sensor cards */
+    var cardsEl = document.getElementById('cards-grid');
+    if (latestReading) {
+      cardsEl.innerHTML =
+        cardHTML('Temperature', latestReading.temperature, '\u00B0C', '\uD83C\uDF21\uFE0F',
+                 latestReading.severity, latestReading.severity) +
+        cardHTML('UV Index',    latestReading.uvIndex,     '',        '\u2600\uFE0F',
+                 latestReading.severity, latestReading.severity) +
+        cardHTML('Status',      latestReading.severity,    '',
+                 latestReading.severity === 'SAFE' ? '\u2705' : latestReading.severity === 'HIGH' ? '\u26A0\uFE0F' : '\uD83D\uDEA8',
+                 latestReading.severity, 'Overall');
+      cardsEl.style.display = 'grid';
+      document.getElementById('readings-empty').style.display = 'none';
+    } else {
+      cardsEl.style.display = 'none';
+      document.getElementById('readings-empty').style.display = 'block';
+    }
+
+    /* alert history */
+    renderAlertHistory(recentData);
+
+    /* chart */
+    if (recentData.length > 0) {
+      document.getElementById('chart-section').style.display = 'block';
+      renderChart(recentData, name);
+    } else {
+      document.getElementById('chart-section').style.display = 'none';
+    }
+  }
+
+  function renderAlertHistory(data) {
+    var section  = document.getElementById('alerts-section');
+    var listEl   = document.getElementById('alerts-list');
+    var allAlerts = [];
+
+    data.forEach(function (reading) {
+      if (reading.alerts && reading.alerts.length > 0) {
+        var ts = new Date(reading.createdAt || reading.timestamp).toLocaleString();
+        reading.alerts.forEach(function (a) {
+          allAlerts.push({ text: a, ts: ts, severity: reading.severity });
+        });
+      }
+    });
+
+    if (allAlerts.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    listEl.innerHTML = allAlerts.map(function (a) {
+      return '<li class="alert-item alert-item-' + a.severity.toLowerCase() + '">' +
+               '<span class="alert-time">' + escapeHTML(a.ts) + '</span>' +
+               '<span class="alert-text">' + escapeHTML(a.text) + '</span>' +
+             '</li>';
+    }).join('');
+    section.style.display = 'block';
+  }
+
+  function renderChart(data, name) {
+    var sorted = data.slice().reverse().slice(-20);
+    var labels = sorted.map(function (d) {
+      return new Date(d.createdAt || d.timestamp)
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    });
+    var ctx = document.getElementById('worker-chart').getContext('2d');
+    if (workerChart) { workerChart.destroy(); }
+    workerChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Temperature (\u00B0C)',
+            data: sorted.map(function (d) { return d.temperature; }),
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231,76,60,0.15)',
+            tension: 0.3,
+            yAxisID: 'y'
+          },
+          {
+            label: 'UV Index',
+            data: sorted.map(function (d) { return d.uvIndex; }),
+            borderColor: '#f39c12',
+            backgroundColor: 'rgba(243,156,18,0.15)',
+            tension: 0.3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top' },
+          title:  { display: true, text: escapeHTML(name) + ' \u2013 Sensor Trends' }
+        },
+        scales: {
+          y: {
+            type: 'linear', display: true, position: 'left',
+            title: { display: true, text: 'Temperature (\u00B0C)' }
+          },
+          y1: {
+            type: 'linear', display: true, position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'UV Index' }
+          }
+        }
+      }
+    });
+  }
+
+  /* ---- data fetching ---- */
+  function fetchProfile() {
+    if (!workerId) { return; }
+    API.getWorkerById(workerId)
+      .then(function (data) {
+        document.getElementById('error-msg').style.display = 'none';
+        renderProfile(workerName, data);
+      })
+      .catch(function (err) {
+        document.getElementById('loading').style.display = 'none';
+        var errEl = document.getElementById('error-msg');
+        errEl.textContent = err.message || 'Failed to load worker profile.';
+        errEl.style.display = 'block';
+      });
+  }
+
+  if (currentUser && workerId) {
+    fetchProfile();
+    setInterval(fetchProfile, 30000);
+  }
+</script>
+
+</body>
+</html>
