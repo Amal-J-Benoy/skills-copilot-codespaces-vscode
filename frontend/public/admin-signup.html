@@ -18,6 +18,7 @@
       <p class="login-subtitle">Smart Workforce Safety System</p>
     </div>
 
+    <!-- Bootstrap form: used when no admin exists yet -->
     <form id="admin-signup-form" class="login-form" novalidate>
       <div class="form-group">
         <label for="name">Full Name</label>
@@ -42,6 +43,15 @@
         <label for="deviceId">Device ID</label>
         <input id="deviceId" name="deviceId" type="text"
                placeholder="ADMIN-DEVICE-001" required />
+      </div>
+
+      <!-- Bootstrap secret – only shown when no admin exists yet -->
+      <div id="bootstrap-group" class="form-group" style="display:none;">
+        <label for="bootstrapSecret">Bootstrap Secret</label>
+        <input id="bootstrapSecret" name="bootstrapSecret" type="password"
+               placeholder="Enter the bootstrap secret"
+               autocomplete="off" />
+        <small style="color:#888;">Required for first-time admin setup.</small>
       </div>
 
       <div id="role-group" class="form-group" style="display:none;">
@@ -69,17 +79,21 @@
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
 <script>
-  // If already logged in as admin, show role selector (allows choosing admin or worker)
   (function () {
     var user = Auth.getUser();
+
     if (user && Auth.getToken() && user.role === 'admin') {
+      // Existing admin: show role selector for creating additional accounts
       document.getElementById('role-group').style.display = 'block';
+    } else {
+      // No logged-in admin: show bootstrap secret field for first-time setup
+      document.getElementById('bootstrap-group').style.display = 'block';
     }
   }());
 
-  var form      = document.getElementById('admin-signup-form');
-  var errEl     = document.getElementById('error-msg');
-  var btn       = document.getElementById('submit-btn');
+  var form  = document.getElementById('admin-signup-form');
+  var errEl = document.getElementById('error-msg');
+  var btn   = document.getElementById('submit-btn');
 
   function showError(msg) {
     errEl.textContent = msg;
@@ -95,7 +109,8 @@
     var password = document.getElementById('password').value;
     var deviceId = document.getElementById('deviceId').value.trim();
     var roleEl   = document.getElementById('role');
-    var role     = (roleEl && roleEl.closest('#role-group').style.display !== 'none') ? roleEl.value : 'admin';
+    var isAdminLoggedIn = roleEl.closest('#role-group').style.display !== 'none';
+    var role     = isAdminLoggedIn ? roleEl.value : 'admin';
 
     if (!name)     { showError('Full name is required.');   return; }
     if (!email)    { showError('Email is required.');       return; }
@@ -105,7 +120,23 @@
     btn.disabled    = true;
     btn.textContent = 'Please wait\u2026';
 
-    API.registerAdmin({ name: name, email: email, password: password, deviceId: deviceId, role: role })
+    var promise;
+    if (isAdminLoggedIn) {
+      // Use regular register endpoint (existing admin creates another user)
+      promise = API.registerAdmin({ name: name, email: email, password: password, deviceId: deviceId, role: role });
+    } else {
+      // Use bootstrap endpoint (first-time admin setup)
+      var bootstrapSecret = document.getElementById('bootstrapSecret').value;
+      if (!bootstrapSecret) {
+        showError('Bootstrap secret is required for initial admin setup.');
+        btn.disabled = false;
+        btn.textContent = 'Create Admin Account';
+        return;
+      }
+      promise = API.bootstrapAdmin({ name: name, email: email, password: password, deviceId: deviceId, bootstrapSecret: bootstrapSecret });
+    }
+
+    promise
       .then(function (data) {
         Auth.setAuth(data.token, data.user);
         window.location.replace(data.user.role === 'admin' ? 'admin.html' : 'dashboard.html');

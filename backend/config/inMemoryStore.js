@@ -144,6 +144,8 @@ const InMemoryUserModel = {
                 ) || null;
         } else if (query.deviceId !== undefined) {
             user = _users.find((u) => u.deviceId === query.deviceId) || null;
+        } else if (query.role !== undefined) {
+            user = _users.find((u) => u.role === query.role) || null;
         }
         return new SingleUserQuery(user);
     },
