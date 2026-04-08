@@ -9,10 +9,32 @@ const generateToken = (id, role) => {
 
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, deviceId } = req.body;
+        const { name, email, password, deviceId, role } = req.body;
 
         if (!name || !email || !password || !deviceId) {
             return res.status(400).json({ message: 'Please provide name, email, password, and deviceId' });
+        }
+
+        const VALID_ROLES = ['admin', 'worker'];
+        const requestedRole = role && VALID_ROLES.includes(role) ? role : 'worker';
+
+        // Only an authenticated admin may create another admin account
+        if (requestedRole === 'admin') {
+            const authHeader = req.headers.authorization;
+            const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+            if (!token) {
+                return res.status(403).json({ message: 'Admin token required to create an admin account' });
+            }
+            let decoded;
+            try {
+                decoded = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (verifyErr) {
+                console.error('Register admin token verify error:', verifyErr.message);
+                return res.status(403).json({ message: 'Invalid or expired token' });
+            }
+            if (!decoded || decoded.role !== 'admin') {
+                return res.status(403).json({ message: 'Only existing admins can create admin accounts' });
+            }
         }
 
         const user = await User.create({
@@ -20,7 +42,7 @@ exports.register = async (req, res) => {
             email,
             password,
             deviceId,
-            // role intentionally omitted — defaults to 'worker'
+            role: requestedRole,
         });
 
         const token = generateToken(user._id, user.role);
