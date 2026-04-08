@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#2c3e50" />
-  <title>Sign Up &ndash; Wearable Monitor</title>
+  <title>Admin Sign Up &ndash; Wearable Monitor</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -13,12 +13,12 @@
   <div class="login-card">
 
     <div class="login-header">
-      <span class="login-icon">&#x1F9BA;</span>
-      <h1 class="login-title">Create Account</h1>
+      <span class="login-icon">&#x1F6E1;&#xFE0F;</span>
+      <h1 class="login-title">Create Admin Account</h1>
       <p class="login-subtitle">Smart Workforce Safety System</p>
     </div>
 
-    <form id="signup-form" class="login-form" novalidate>
+    <form id="admin-signup-form" class="login-form" novalidate>
       <div class="form-group">
         <label for="name">Full Name</label>
         <input id="name" name="name" type="text"
@@ -28,7 +28,7 @@
       <div class="form-group">
         <label for="email">Email</label>
         <input id="email" name="email" type="email"
-               placeholder="user@example.com" autocomplete="email" required />
+               placeholder="admin@example.com" autocomplete="email" required />
       </div>
 
       <div class="form-group">
@@ -41,19 +41,26 @@
       <div class="form-group">
         <label for="deviceId">Device ID</label>
         <input id="deviceId" name="deviceId" type="text"
-               placeholder="ESP32-001" required />
+               placeholder="ADMIN-DEVICE-001" required />
+      </div>
+
+      <div id="role-group" class="form-group" style="display:none;">
+        <label for="role">Role</label>
+        <select id="role" name="role" class="form-control">
+          <option value="admin">Admin</option>
+          <option value="worker">Worker</option>
+        </select>
       </div>
 
       <div id="error-msg" class="alert alert-error" style="display:none;"></div>
 
       <button type="submit" id="submit-btn" class="btn btn-primary btn-full">
-        Register
+        Create Admin Account
       </button>
     </form>
 
     <p class="login-footer">
-      Already have an account?
-      <a href="login.html">Log in</a>
+      <a href="login.html">&larr; Back to Login</a>
     </p>
 
   </div>
@@ -62,17 +69,17 @@
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
 <script>
-  // Redirect immediately if already authenticated
+  // If already logged in as admin, show role selector (allows choosing admin or worker)
   (function () {
     var user = Auth.getUser();
-    if (user && Auth.getToken()) {
-      window.location.replace(user.role === 'admin' ? 'admin.html' : 'dashboard.html');
+    if (user && Auth.getToken() && user.role === 'admin') {
+      document.getElementById('role-group').style.display = 'block';
     }
   }());
 
-  var form  = document.getElementById('signup-form');
-  var errEl = document.getElementById('error-msg');
-  var btn   = document.getElementById('submit-btn');
+  var form      = document.getElementById('admin-signup-form');
+  var errEl     = document.getElementById('error-msg');
+  var btn       = document.getElementById('submit-btn');
 
   function showError(msg) {
     errEl.textContent = msg;
@@ -87,6 +94,8 @@
     var email    = document.getElementById('email').value.trim();
     var password = document.getElementById('password').value;
     var deviceId = document.getElementById('deviceId').value.trim();
+    var roleEl   = document.getElementById('role');
+    var role     = (roleEl && roleEl.closest('#role-group').style.display !== 'none') ? roleEl.value : 'admin';
 
     if (!name)     { showError('Full name is required.');   return; }
     if (!email)    { showError('Email is required.');       return; }
@@ -96,7 +105,7 @@
     btn.disabled    = true;
     btn.textContent = 'Please wait\u2026';
 
-    API.register({ name: name, email: email, password: password, deviceId: deviceId, role: 'worker' })
+    API.registerAdmin({ name: name, email: email, password: password, deviceId: deviceId, role: role })
       .then(function (data) {
         Auth.setAuth(data.token, data.user);
         window.location.replace(data.user.role === 'admin' ? 'admin.html' : 'dashboard.html');
@@ -104,7 +113,7 @@
       .catch(function (err) {
         showError(err.message || 'Registration failed. Please try again.');
         btn.disabled    = false;
-        btn.textContent = 'Register';
+        btn.textContent = 'Create Admin Account';
       });
   });
 </script>

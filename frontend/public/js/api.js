@@ -33,6 +33,11 @@ var API = (function () {
         register: function (data) {
             return request('POST', '/auth/register', data);
         },
+        registerAdmin: function (data) {
+            var payload = Object.assign({}, data);
+            if (!payload.role) { payload.role = 'admin'; }
+            return request('POST', '/auth/register', payload);
+        },
         getSensorData: function () {
             return request('GET', '/my-data');
         },
