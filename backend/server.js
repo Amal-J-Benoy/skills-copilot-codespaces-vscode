@@ -11,15 +11,68 @@ process.on('uncaughtException', (err) => {
 });
 
 require('dotenv').config();
+
+// Provide a fallback JWT secret so the server works without a .env file.
+// A random secret is generated each startup so tokens from previous sessions
+// are invalidated on restart.  Always set JWT_SECRET in production!
+if (!process.env.JWT_SECRET) {
+    const crypto = require('crypto');
+    process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+    console.warn('[Auth] JWT_SECRET not set – generated a random secret for this session (set JWT_SECRET in .env for production)');
+}
+
 const app = require('./app');
 const connectDB = require('./config/db');
+const User = require('./models/User');
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to database
-connectDB();
+/**
+ * Seeds a pair of default users into the in-memory store so the login page
+ * works out-of-the-box when MongoDB is not available.
+ */
+async function seedDefaultUsers() {
+    try {
+        const existing = await User.findOne({ email: 'admin@example.com' });
+        if (existing) return; // already seeded
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+        await User.create({
+            name: 'Admin User',
+            email: 'admin@example.com',
+            password: 'Admin123!',
+            deviceId: 'ADMIN-DEVICE-001',
+            role: 'admin',
+        });
+        await User.create({
+            name: 'Worker User',
+            email: 'worker@example.com',
+            password: 'Worker123!',
+            deviceId: 'WORKER-DEVICE-001',
+            role: 'worker',
+        });
+        console.log('[Seed] Default test users created:');
+        console.log('  Admin  → admin@example.com  / Admin123!');
+        console.log('  Worker → worker@example.com / Worker123!');
+    } catch (err) {
+        console.warn('[Seed] Could not seed default users:', err.message);
+    }
+}
+
+async function start() {
+    // Connect to MongoDB if MONGODB_URI is configured; fall back to in-memory otherwise.
+    await connectDB();
+
+    // Seed test users when running without a real database.
+    if (!connectDB.isConnected()) {
+        await seedDefaultUsers();
+    }
+
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+start().catch((err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });

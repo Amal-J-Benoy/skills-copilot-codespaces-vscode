@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const db = require('../config/db');
+const { InMemoryUserModel } = require('../config/inMemoryStore');
 
 const UserSchema = new mongoose.Schema(
     {
@@ -52,4 +54,19 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model('User', UserSchema);
+const MongooseUser = mongoose.model('User', UserSchema);
+
+/**
+ * Proxy that delegates to the Mongoose model when MongoDB is connected,
+ * or to the in-memory implementation otherwise.
+ * Controllers always call User.create / User.findOne / etc. without needing
+ * to know which backend is active.
+ */
+const User = {
+    create:   (...args) => db.isConnected() ? MongooseUser.create(...args)   : InMemoryUserModel.create(...args),
+    findOne:  (...args) => db.isConnected() ? MongooseUser.findOne(...args)  : InMemoryUserModel.findOne(...args),
+    findById: (...args) => db.isConnected() ? MongooseUser.findById(...args) : InMemoryUserModel.findById(...args),
+    find:     (...args) => db.isConnected() ? MongooseUser.find(...args)     : InMemoryUserModel.find(...args),
+};
+
+module.exports = User;
