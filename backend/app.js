@@ -8,6 +8,11 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+// Trust the first proxy hop so express-rate-limit can correctly read the
+// client IP from the X-Forwarded-For header when the app is behind a
+// reverse proxy or a development tool such as VS Code Live Server.
+app.set('trust proxy', 1);
+
 // Rate limiters
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -29,7 +34,7 @@ const authLimiter = rateLimit({
 // Set ALLOWED_ORIGINS as a comma-separated list in .env to override.
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://127.0.0.1:5500', 'http://localhost:5500'];
 
 // Middleware
 app.use(express.json());
