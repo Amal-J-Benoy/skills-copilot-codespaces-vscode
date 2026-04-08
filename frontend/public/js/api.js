@@ -38,6 +38,9 @@ var API = (function () {
             if (!payload.role) { payload.role = 'admin'; }
             return request('POST', '/auth/register', payload);
         },
+        bootstrapAdmin: function (data) {
+            return request('POST', '/auth/bootstrap-admin', data);
+        },
         getSensorData: function () {
             return request('GET', '/my-data');
         },
