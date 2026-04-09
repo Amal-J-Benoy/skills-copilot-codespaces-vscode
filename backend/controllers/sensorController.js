@@ -4,20 +4,20 @@ const { checkAlerts } = require('../utils/alertService');
 
 exports.recordSensorData = async (req, res) => {
     try {
-        const { deviceId, temperature, uvIndex } = req.body;
+        const { deviceId, temperature, uvIndex, humidity, batteryLevel } = req.body;
 
         if (!deviceId || temperature === undefined || uvIndex === undefined) {
             return res.status(400).json({ message: 'Please provide deviceId, temperature, and uvIndex' });
         }
 
-        // Find user by deviceId
-        const user = await User.findOne({ deviceId });
+        // Find user by deviceId – coerce to string to prevent NoSQL injection
+        const user = await User.findOne({ deviceId: String(deviceId) });
         if (!user) {
             return res.status(404).json({ message: 'Device not found' });
         }
 
         // Check alerts
-        const alertInfo = checkAlerts(temperature, uvIndex);
+        const alertInfo = checkAlerts(temperature, uvIndex, humidity);
 
         // Save sensor data
         const sensorData = await SensorData.create({
@@ -25,6 +25,8 @@ exports.recordSensorData = async (req, res) => {
             deviceId,
             temperature,
             uvIndex,
+            humidity,
+            batteryLevel,
             alerts: alertInfo.alerts,
             severity: alertInfo.severity,
         });

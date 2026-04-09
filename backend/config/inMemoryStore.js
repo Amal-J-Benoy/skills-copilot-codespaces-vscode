@@ -223,13 +223,15 @@ class SensorDataQuery {
 }
 
 const InMemorySensorDataModel = {
-    async create({ userId, deviceId, temperature, uvIndex, alerts = [], severity = 'SAFE' }) {
+    async create({ userId, deviceId, temperature, uvIndex, humidity, batteryLevel, alerts = [], severity = 'SAFE' }) {
         const entry = {
             _id: generateId(),
             userId: String(userId),
             deviceId,
             temperature,
             uvIndex,
+            humidity,
+            batteryLevel,
             alerts,
             severity,
             createdAt: new Date(),

@@ -21,6 +21,16 @@ const SensorDataSchema = new mongoose.Schema(
             type: Number,
             required: [true, 'Please provide UV index reading'],
         },
+        humidity: {
+            type: Number,
+            min: 0,
+            max: 100,
+        },
+        batteryLevel: {
+            type: Number,
+            min: 0,
+            max: 100,
+        },
         alerts: {
             type: [String],
             default: [],
