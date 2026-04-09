@@ -1,0 +1,1 @@
+{\n  "configurations": [\n    {\n      "name": "Win32",\n      "includePath": [\n        "${workspaceFolder}/**",\n        "${workspaceFolder}/esp32"\n      ],\n      "defines": [],\n      "compilerPath": "C:/MinGW/bin/g++.exe",\n      "cStandard": "c11",\n      "cppStandard": "c++17",\n      "intelliSenseMode": "gcc-x64"\n    }\n  ],\n  "version": 4\n}
