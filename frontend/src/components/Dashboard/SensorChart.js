@@ -35,6 +35,7 @@ const SensorChart = ({ data, title }) => {
 
     const sorted = [...data].reverse().slice(-20);
     const labels = sorted.map((d) => formatTime(d.createdAt || d.timestamp));
+    const hasHumidityData = sorted.some((d) => d.humidity !== undefined && d.humidity !== null);
 
     const chartData = {
         labels,
@@ -61,7 +62,7 @@ const SensorChart = ({ data, title }) => {
                 pointRadius: 3,
                 pointHoverRadius: 5,
             },
-            ...(sorted.some((d) => d.humidity !== undefined && d.humidity !== null)
+            ...(hasHumidityData
                 ? [
                       {
                           label: 'Humidity (%)',
@@ -118,15 +119,19 @@ const SensorChart = ({ data, title }) => {
                 title: { display: true, text: 'UV Index', font: { size: 11 } },
                 ticks: { font: { size: 11 } },
             },
-            y2: {
-                type: 'linear',
-                position: 'right',
-                grid: { drawOnChartArea: false },
-                title: { display: true, text: 'Humidity (%)', font: { size: 11 } },
-                ticks: { font: { size: 11 } },
-                min: 0,
-                max: 100,
-            },
+            ...(hasHumidityData
+                ? {
+                      y2: {
+                          type: 'linear',
+                          position: 'right',
+                          grid: { drawOnChartArea: false },
+                          title: { display: true, text: 'Humidity (%)', font: { size: 11 } },
+                          ticks: { font: { size: 11 } },
+                          min: 0,
+                          max: 100,
+                      },
+                  }
+                : {}),
         },
     };
 

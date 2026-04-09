@@ -182,7 +182,11 @@ const WorkerDashboard = () => {
                             </h2>
                             <SensorChart
                                 data={sensorData}
-                                title="Temperature, UV Index & Humidity Over Time"
+                                title={
+                                    sensorData.some((d) => d.humidity !== undefined && d.humidity !== null)
+                                        ? 'Temperature, UV Index & Humidity Over Time'
+                                        : 'Temperature & UV Index Over Time'
+                                }
                             />
                         </div>
                     )}
