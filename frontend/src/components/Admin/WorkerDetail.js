@@ -57,6 +57,39 @@ const WorkerDetail = ({ worker, detail, loading }) => {
                                 severity={latest.severity}
                                 label={latest.severity}
                             />
+                            {latest.humidity !== undefined && latest.humidity !== null && (
+                                <SensorCard
+                                    title="Humidity"
+                                    value={latest.humidity}
+                                    unit="%"
+                                    icon="💧"
+                                    severity={latest.severity}
+                                    label={latest.severity}
+                                />
+                            )}
+                            {latest.batteryLevel !== undefined && latest.batteryLevel !== null && (
+                                <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-gray-300">
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                                        🔋 Battery
+                                    </p>
+                                    <p className="text-2xl font-bold text-gray-800">
+                                        {latest.batteryLevel}
+                                        <span className="text-sm font-normal text-gray-500 ml-1">%</span>
+                                    </p>
+                                    <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                                        <div
+                                            className={`h-2 rounded-full ${
+                                                latest.batteryLevel > 50
+                                                    ? 'bg-green-500'
+                                                    : latest.batteryLevel > 20
+                                                    ? 'bg-amber-500'
+                                                    : 'bg-red-500'
+                                            }`}
+                                            style={{ width: `${latest.batteryLevel}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                             <div className="bg-white rounded-xl p-5 shadow-sm border-l-4 border-gray-300">
                                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
                                     Last Reading

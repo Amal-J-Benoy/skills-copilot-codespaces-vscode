@@ -103,7 +103,7 @@ const WorkerDashboard = () => {
 
                     {/* Sensor cards */}
                     {latest && !loading && (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                             <SensorCard
                                 title="Temperature"
                                 value={latest.temperature}
@@ -119,13 +119,44 @@ const WorkerDashboard = () => {
                                 severity={latest.severity}
                                 label={latest.severity}
                             />
-                            <SensorCard
-                                title="Status"
-                                value={colors.icon}
-                                icon="📟"
-                                severity={latest.severity}
-                                label={`Device: ${latest.deviceId}`}
-                            />
+                            {latest.humidity !== undefined && latest.humidity !== null && (
+                                <SensorCard
+                                    title="Humidity"
+                                    value={latest.humidity}
+                                    unit="%"
+                                    icon="💧"
+                                    severity={latest.severity}
+                                    label={latest.severity}
+                                />
+                            )}
+                            <div className="bg-white rounded-2xl shadow-sm p-5 border-l-4 border-gray-300 flex flex-col justify-between">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                                    🔋 Battery
+                                </p>
+                                {latest.batteryLevel !== undefined && latest.batteryLevel !== null ? (
+                                    <>
+                                        <p className="text-2xl font-bold text-gray-800">
+                                            {latest.batteryLevel}
+                                            <span className="text-sm font-normal text-gray-500 ml-1">%</span>
+                                        </p>
+                                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className={`h-2 rounded-full ${
+                                                    latest.batteryLevel > 50
+                                                        ? 'bg-green-500'
+                                                        : latest.batteryLevel > 20
+                                                        ? 'bg-amber-500'
+                                                        : 'bg-red-500'
+                                                }`}
+                                                style={{ width: `${latest.batteryLevel}%` }}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-gray-400 italic">N/A</p>
+                                )}
+                                <p className="mt-2 text-xs text-gray-400">Device: {latest.deviceId}</p>
+                            </div>
                         </div>
                     )}
 
@@ -151,7 +182,7 @@ const WorkerDashboard = () => {
                             </h2>
                             <SensorChart
                                 data={sensorData}
-                                title="Temperature & UV Index Over Time"
+                                title="Temperature, UV Index & Humidity Over Time"
                             />
                         </div>
                     )}

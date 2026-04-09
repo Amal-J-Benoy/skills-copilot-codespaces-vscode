@@ -4,7 +4,7 @@ const { checkAlerts } = require('../utils/alertService');
 
 exports.recordSensorData = async (req, res) => {
     try {
-        const { deviceId, temperature, uvIndex } = req.body;
+        const { deviceId, temperature, uvIndex, humidity, batteryLevel } = req.body;
 
         if (!deviceId || temperature === undefined || uvIndex === undefined) {
             return res.status(400).json({ message: 'Please provide deviceId, temperature, and uvIndex' });
@@ -17,7 +17,7 @@ exports.recordSensorData = async (req, res) => {
         }
 
         // Check alerts
-        const alertInfo = checkAlerts(temperature, uvIndex);
+        const alertInfo = checkAlerts(temperature, uvIndex, humidity);
 
         // Save sensor data
         const sensorData = await SensorData.create({
@@ -25,6 +25,8 @@ exports.recordSensorData = async (req, res) => {
             deviceId,
             temperature,
             uvIndex,
+            humidity,
+            batteryLevel,
             alerts: alertInfo.alerts,
             severity: alertInfo.severity,
         });

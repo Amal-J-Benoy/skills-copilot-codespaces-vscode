@@ -61,6 +61,21 @@ const SensorChart = ({ data, title }) => {
                 pointRadius: 3,
                 pointHoverRadius: 5,
             },
+            ...(sorted.some((d) => d.humidity !== undefined && d.humidity !== null)
+                ? [
+                      {
+                          label: 'Humidity (%)',
+                          data: sorted.map((d) => d.humidity ?? null),
+                          borderColor: '#3b82f6',
+                          backgroundColor: 'rgba(59,130,246,0.1)',
+                          tension: 0.4,
+                          fill: true,
+                          yAxisID: 'y2',
+                          pointRadius: 3,
+                          pointHoverRadius: 5,
+                      },
+                  ]
+                : []),
         ],
     };
 
@@ -102,6 +117,15 @@ const SensorChart = ({ data, title }) => {
                 grid: { drawOnChartArea: false },
                 title: { display: true, text: 'UV Index', font: { size: 11 } },
                 ticks: { font: { size: 11 } },
+            },
+            y2: {
+                type: 'linear',
+                position: 'right',
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'Humidity (%)', font: { size: 11 } },
+                ticks: { font: { size: 11 } },
+                min: 0,
+                max: 100,
             },
         },
     };
