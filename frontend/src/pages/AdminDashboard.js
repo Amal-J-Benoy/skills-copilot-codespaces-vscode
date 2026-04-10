@@ -35,11 +35,12 @@ const AdminDashboard = () => {
 
     // Re-fetch when demo mode is toggled; reset selected worker
     useEffect(() => {
-        setLoading(true);
+        if (workers.length === 0) setLoading(true);
         setSelectedWorker(null);
         setWorkerDetail(null);
         fetchWorkers();
-    }, [isDemoMode, fetchWorkers]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDemoMode]);
 
     useEffect(() => {
         const interval = setInterval(fetchWorkers, REFRESH_INTERVAL);

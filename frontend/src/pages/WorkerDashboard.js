@@ -30,11 +30,12 @@ const WorkerDashboard = () => {
         }
     }, []);
 
-    // Re-fetch whenever demo mode is toggled
+    // Re-fetch whenever demo mode is toggled; only show spinner on first load
     useEffect(() => {
-        setLoading(true);
+        if (sensorData.length === 0) setLoading(true);
         fetchData();
-    }, [isDemoMode, fetchData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDemoMode]);
 
     useEffect(() => {
         const interval = setInterval(fetchData, REFRESH_INTERVAL);
