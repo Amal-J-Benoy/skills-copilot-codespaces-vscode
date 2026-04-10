@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DemoProvider } from './context/DemoContext';
 import Login from './pages/Login';
 import WorkerDashboard from './pages/WorkerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -80,9 +81,11 @@ const AppRoutes = () => {
 const App = () => {
     return (
         <AuthProvider>
-            <Router>
-                <AppRoutes />
-            </Router>
+            <DemoProvider>
+                <Router>
+                    <AppRoutes />
+                </Router>
+            </DemoProvider>
         </AuthProvider>
     );
 };

@@ -5,7 +5,8 @@ import SensorCard from '../components/Dashboard/SensorCard';
 import SensorChart from '../components/Dashboard/SensorChart';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
 import { getSensorData } from '../services/api';
-import { formatDateTime, severityColors } from '../utils/formatters';
+import { formatDateTime } from '../utils/formatters';
+import { useDemo } from '../context/DemoContext';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
@@ -14,6 +15,7 @@ const WorkerDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [lastUpdated, setLastUpdated] = useState(null);
+    const { isDemoMode } = useDemo();
 
     const fetchData = useCallback(async () => {
         try {
@@ -28,14 +30,18 @@ const WorkerDashboard = () => {
         }
     }, []);
 
+    // Re-fetch whenever demo mode is toggled
     useEffect(() => {
+        setLoading(true);
         fetchData();
+    }, [isDemoMode, fetchData]);
+
+    useEffect(() => {
         const interval = setInterval(fetchData, REFRESH_INTERVAL);
         return () => clearInterval(interval);
     }, [fetchData]);
 
     const latest = sensorData.length > 0 ? sensorData[0] : null;
-    const colors = severityColors(latest?.severity);
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -65,6 +71,19 @@ const WorkerDashboard = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Demo mode banner */}
+                    {isDemoMode && (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-5 py-3 mb-5 text-sm">
+                            <span className="text-xl">🎭</span>
+                            <div>
+                                <p className="font-semibold">Demo Mode Active</p>
+                                <p className="text-xs mt-0.5 opacity-80">
+                                    You are viewing simulated sensor data. Toggle Live Mode in the navbar to connect to real devices.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Loading state */}
                     {loading && <LoadingSpinner message="Loading sensor data…" />}

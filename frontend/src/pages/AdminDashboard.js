@@ -6,6 +6,7 @@ import WorkerDetail from '../components/Admin/WorkerDetail';
 import LoadingSpinner from '../components/Common/LoadingSpinner';
 import { getAllWorkers, getWorkerById } from '../services/api';
 import { formatDateTime } from '../utils/formatters';
+import { useDemo } from '../context/DemoContext';
 
 const REFRESH_INTERVAL = 30000;
 
@@ -17,6 +18,7 @@ const AdminDashboard = () => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [error, setError] = useState('');
     const [lastUpdated, setLastUpdated] = useState(null);
+    const { isDemoMode } = useDemo();
 
     const fetchWorkers = useCallback(async () => {
         try {
@@ -31,8 +33,15 @@ const AdminDashboard = () => {
         }
     }, []);
 
+    // Re-fetch when demo mode is toggled; reset selected worker
     useEffect(() => {
+        setLoading(true);
+        setSelectedWorker(null);
+        setWorkerDetail(null);
         fetchWorkers();
+    }, [isDemoMode, fetchWorkers]);
+
+    useEffect(() => {
         const interval = setInterval(fetchWorkers, REFRESH_INTERVAL);
         return () => clearInterval(interval);
     }, [fetchWorkers]);
@@ -81,6 +90,19 @@ const AdminDashboard = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Demo mode banner */}
+                    {isDemoMode && (
+                        <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 text-amber-800 rounded-xl px-5 py-3 mb-5 text-sm">
+                            <span className="text-xl">🎭</span>
+                            <div>
+                                <p className="font-semibold">Demo Mode Active</p>
+                                <p className="text-xs mt-0.5 opacity-80">
+                                    Showing simulated workers and sensor data. Toggle Live Mode in the navbar to use real data.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Stats row */}
                     {!loading && workers.length > 0 && (

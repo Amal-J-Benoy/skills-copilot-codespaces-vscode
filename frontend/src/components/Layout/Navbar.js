@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useDemo } from '../../context/DemoContext';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
+    const { isDemoMode, isDemoEnabled, toggleDemoMode } = useDemo();
     const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -42,6 +44,27 @@ const Navbar = () => {
                     {/* Right side */}
                     {user && (
                         <div className="flex items-center gap-3">
+                            {/* Demo mode badge */}
+                            {isDemoMode && (
+                                <span className="hidden sm:inline text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400 text-amber-900 animate-pulse">
+                                    🎭 DEMO
+                                </span>
+                            )}
+
+                            {/* Demo mode toggle (visible when feature is enabled) */}
+                            {isDemoEnabled && (
+                                <button
+                                    onClick={toggleDemoMode}
+                                    title={isDemoMode ? 'Switch to Live Mode' : 'Switch to Demo Mode'}
+                                    className={`hidden sm:flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition ${
+                                        isDemoMode
+                                            ? 'bg-amber-400 border-amber-500 text-amber-900 hover:bg-amber-300'
+                                            : 'bg-white bg-opacity-10 border-white border-opacity-30 text-white hover:bg-opacity-20'
+                                    }`}
+                                >
+                                    {isDemoMode ? '🔴 Live Mode' : '🎭 Demo Mode'}
+                                </button>
+                            )}
                             {/* Role badge */}
                             <span
                                 className={`hidden sm:inline text-xs font-bold px-2.5 py-0.5 rounded-full ${
@@ -109,6 +132,15 @@ const Navbar = () => {
                                             </Link>
                                         )}
                                         <div className="border-t border-gray-100 mt-1">
+                                            {isDemoEnabled && (
+                                                <button
+                                                    onClick={() => { toggleDemoMode(); setMenuOpen(false); }}
+                                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-gray-50 transition"
+                                                >
+                                                    <span>{isDemoMode ? '🔴' : '🎭'}</span>
+                                                    {isDemoMode ? 'Switch to Live Mode' : 'Switch to Demo Mode'}
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={handleLogout}
                                                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
